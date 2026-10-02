@@ -3,7 +3,7 @@ import { VideoManager } from '../video/VideoManager';
 import { VideoScrubber } from '../video/VideoScrubber';
 import { CameraController } from '../controls/CameraController';
 import { TimelineController } from '../controls/TimelineController';
-import { Capabilities, PerformanceTier, InteractionMode, EventMap } from '../types';
+import { Capabilities, InteractionMode, EventMap } from '../types';
 import { createElement, createButton, createIcon } from './UIElements';
 
 export interface UIManagerEvents extends EventMap {
@@ -21,12 +21,10 @@ export interface UIManagerEvents extends EventMap {
 export class UIManager extends EventEmitter<UIManagerEvents> {
   private container: HTMLElement;
   private videoManager: VideoManager;
-  private cameraController: CameraController;
-  private timelineController: TimelineController;
+  private cameraController: CameraController | null = null;
+  private timelineController: TimelineController | null = null;
   private capabilities: Capabilities;
 
-  private startScreen: HTMLElement | null = null;
-  private loadingScreen: HTMLElement | null = null;
   private mainUI: HTMLElement | null = null;
   private timelineProgress: HTMLElement | null = null;
   private timelineHandle: HTMLElement | null = null;
@@ -44,15 +42,15 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
   private debugPanel: HTMLElement | null = null;
   private hideUITimeout: number | null = null;
   private uiVisible = true;
+  private mainUICreated = false;
 
   constructor(
     container: HTMLElement,
     videoManager: VideoManager,
     _videoScrubber: VideoScrubber,
-    cameraController: CameraController,
-    timelineController: TimelineController,
-    capabilities: Capabilities,
-    _performanceTier: PerformanceTier
+    cameraController: CameraController | null,
+    timelineController: TimelineController | null,
+    capabilities: Capabilities
   ) {
     super();
     this.container = container;
@@ -61,50 +59,18 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
     this.timelineController = timelineController;
     this.capabilities = capabilities;
 
-    this.createStartScreen();
-    this.createLoadingScreen();
-    this.createMainUI();
-    this.bindEvents();
+    // Don't create screens here - App handles start/loading screens
+    // Main UI will be created when controllers are available
   }
 
-  private createStartScreen(): void {
-    this.startScreen = createElement('div', {
-      id: 'start-screen',
-      className: 'screen',
-      children: [
-        createElement('div', { className: 'start-content', children: [
-          createElement('div', { className: 'logo', children: [createIcon('explore', 80)] }),
-          createElement('h1', { text: 'Djenné 360°' }),
-          createElement('p', { className: 'subtitle', text: 'Explorez la grande mosquée de Djenné en vidéo immersive 360°' }),
-          createElement('p', { className: 'duration', text: 'Durée : 3 min 30' }),
-          createButton('Commencer l\'expérience', () => this.emit('startExperience'), {
-            className: 'btn-primary',
-            id: 'start-btn',
-            ariaLabel: 'Démarrer l\'expérience 360°'
-          })
-        ]})
-      ]
-    });
-    this.container.appendChild(this.startScreen);
-  }
-
-  private createLoadingScreen(): void {
-    this.loadingScreen = createElement('div', {
-      id: 'loading-screen',
-      className: 'screen hidden',
-      children: [
-        createElement('div', { className: 'loading-content', children: [
-          createIcon('loading', 48),
-          createElement('h2', { text: 'Chargement de l\'expérience' }),
-          createElement('div', { className: 'progress-bar', children: [
-            createElement('div', { id: 'loading-progress', className: 'progress-fill' })
-          ]}),
-          createElement('p', { id: 'loading-percent', className: 'loading-percent', text: '0%' }),
-          createElement('p', { id: 'loading-info', className: 'loading-info', text: 'Préparation de la vidéo...' })
-        ]})
-      ]
-    });
-    this.container.appendChild(this.loadingScreen);
+  setControllers(cameraController: CameraController, timelineController: TimelineController): void {
+    this.cameraController = cameraController;
+    this.timelineController = timelineController;
+    if (!this.mainUICreated) {
+      this.createMainUI();
+      this.bindEvents();
+      this.mainUICreated = true;
+    }
   }
 
   private createMainUI(): void {
@@ -155,12 +121,12 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
 
   private setupTimelineInteraction(): void {
     const track = this.mainUI?.querySelector('.timeline-track') as HTMLElement;
-    if (!track) return;
+    if (!track || !this.timelineController) return;
 
     track.addEventListener('click', (e) => {
       const rect = track.getBoundingClientRect();
       const progress = (e.clientX - rect.left) / rect.width;
-      this.timelineController.seekToProgress(Math.max(0, Math.min(1, progress)));
+      this.timelineController!.seekToProgress(Math.max(0, Math.min(1, progress)));
     });
 
     let isDragging = false;
@@ -172,7 +138,7 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
     });
 
     const onDrag = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging || !this.timelineController) return;
       const rect = track.getBoundingClientRect();
       const progress = (e.clientX - rect.left) / rect.width;
       this.timelineController.seekToProgress(Math.max(0, Math.min(1, progress)));
@@ -191,23 +157,20 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
     this.videoManager.on('progress', (progress) => this.onBufferProgress(progress));
     this.videoManager.on('error', (err) => this.onVideoError(err));
 
-    this.timelineController.on('progressChange', (progress) => this.updateTimeline(progress));
-    this.timelineController.on('timeChange', (time) => this.updateTimeDisplay(time));
-    this.timelineController.on('scrubStart', () => this.showScrubIndicator());
-    this.timelineController.on('scrubEnd', () => this.hideScrubIndicator());
-    this.timelineController.on('seekComplete', (time) => this.updateScrubTime(time));
+    this.timelineController?.on('progressChange', (progress) => this.updateTimeline(progress));
+    this.timelineController?.on('timeChange', (time) => this.updateTimeDisplay(time));
+    this.timelineController?.on('scrubStart', () => this.showScrubIndicator());
+    this.timelineController?.on('scrubEnd', () => this.hideScrubIndicator());
+    this.timelineController?.on('seekComplete', (time) => this.updateScrubTime(time));
 
-    this.cameraController.on('modeChange', (mode) => this.updateModeUI(mode));
-    this.cameraController.on('gyroPermissionChange', (e) => this.updateGyroButton(e.granted));
-    this.cameraController.on('gyroError', () => this.updateGyroButton(false));
+    this.cameraController?.on('modeChange', (mode) => this.updateModeUI(mode));
+    this.cameraController?.on('gyroPermissionChange', (e) => this.updateGyroButton(e.granted));
+    this.cameraController?.on('gyroError', () => this.updateGyroButton(false));
   }
 
   private onVideoStateChange(state: string): void {
     this.updatePlayPauseButton(state === 'playing');
-    if (state === 'playing') {
-      this.hideStartScreen();
-      this.showMainUI();
-    } else if (state === 'error') {
+    if (state === 'error') {
       this.showError('Erreur de lecture vidéo');
     }
   }
@@ -218,50 +181,12 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
     }
   }
 
-  private onBufferProgress(progress: number): void {
-    if (this.loadingScreen && !this.loadingScreen.classList.contains('hidden')) {
-      this.updateLoadingProgress(progress * 100);
-    }
+  private onBufferProgress(_progress: number): void {
+    // Loading progress handled by App directly
   }
 
   private onVideoError(err: { message: string }): void {
     this.showError(err.message);
-  }
-
-  showStartScreen(): void {
-    this.startScreen?.classList.remove('hidden');
-    this.loadingScreen?.classList.add('hidden');
-    this.mainUI?.classList.add('hidden');
-  }
-
-  hideStartScreen(): void {
-    this.startScreen?.classList.add('hidden');
-  }
-
-  showLoadingScreen(): void {
-    this.loadingScreen?.classList.remove('hidden');
-    this.startScreen?.classList.add('hidden');
-  }
-
-  hideLoadingScreen(): void {
-    this.loadingScreen?.classList.add('hidden');
-  }
-
-  showMainUI(): void {
-    this.mainUI?.classList.remove('hidden');
-    this.hideLoadingScreen();
-  }
-
-  updateLoadingProgress(percent: number): void {
-    const progressEl = this.loadingScreen?.querySelector('#loading-progress') as HTMLElement;
-    const percentEl = this.loadingScreen?.querySelector('#loading-percent') as HTMLElement;
-    if (progressEl) progressEl.style.width = `${Math.min(100, percent)}%`;
-    if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
-  }
-
-  updateLoadingInfo(text: string): void {
-    const infoEl = this.loadingScreen?.querySelector('#loading-info') as HTMLElement;
-    if (infoEl) infoEl.textContent = text;
   }
 
   private updateTimeline(progress: number): void {
@@ -423,8 +348,6 @@ export class UIManager extends EventEmitter<UIManagerEvents> {
 
   destroy(): void {
     if (this.hideUITimeout) clearTimeout(this.hideUITimeout);
-    this.startScreen?.remove();
-    this.loadingScreen?.remove();
     this.mainUI?.remove();
     this.errorOverlay?.remove();
     this.debugPanel?.remove();

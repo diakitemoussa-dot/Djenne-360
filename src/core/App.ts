@@ -18,7 +18,7 @@ export class App {
   private capabilities: Capabilities | null = null;
   private performanceTier: PerformanceTier | null = null;
   private isInitialized = false;
-  private videoUrl = '/Djenne_360.mp4';
+  private videoUrl = '/Djenne-360/Djenne_360.mp4';
   private _isFullscreen = false;
 
   constructor(container: HTMLElement) {
@@ -67,22 +67,67 @@ export class App {
   }
 
   private createUI(): void {
-    this.uiManager = new UIManager(
-      this.container,
-      this.videoManager,
-      this.videoScrubber,
-      this.cameraController!,
-      this.timelineController!,
-      this.capabilities!,
-      this.performanceTier!
-    );
+    // Create only the start screen and loading screen initially
+    // Full UIManager with controllers will be created in startExperience()
+    this.createStartScreen();
+    this.createLoadingScreen();
+  }
+
+  private createStartScreen(): void {
+    const startScreen = document.createElement('div');
+    startScreen.id = 'start-screen';
+    startScreen.className = 'screen';
+    startScreen.innerHTML = `
+      <div class="start-content">
+        <div class="logo">${this.getExploreIcon(80)}</div>
+        <h1>Djenné 360°</h1>
+        <p class="subtitle">Explorez la grande mosquée de Djenné en vidéo immersive 360°</p>
+        <p class="duration">Durée : 3 min 30</p>
+        <button id="start-btn" class="btn btn-primary" aria-label="Démarrer l'expérience 360°">Commencer l'expérience</button>
+      </div>
+    `;
+    this.container.appendChild(startScreen);
+    
+    startScreen.querySelector('#start-btn')?.addEventListener('click', () => this.startExperience());
+  }
+
+  private createLoadingScreen(): void {
+    const loadingScreen = document.createElement('div');
+    loadingScreen.id = 'loading-screen';
+    loadingScreen.className = 'screen hidden';
+    loadingScreen.innerHTML = `
+      <div class="loading-content">
+        <div class="loading-spinner">${this.getLoadingIcon(48)}</div>
+        <h2>Chargement de l'expérience</h2>
+        <div class="progress-bar"><div id="loading-progress" class="progress-fill"></div></div>
+        <p id="loading-percent" class="loading-percent">0%</p>
+        <p id="loading-info" class="loading-info">Préparation de la vidéo...</p>
+      </div>
+    `;
+    this.container.appendChild(loadingScreen);
+  }
+
+  private getExploreIcon(size: number): string {
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`;
+  }
+
+  private getLoadingIcon(size: number): string {
+    return `<svg viewBox="0 0 24 24" width="${size}" height="${size}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="30 60" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle></svg>`;
   }
 
   private async startExperience(): Promise<void> {
     if (this.viewer) return;
 
-    const viewerContainer = this.uiManager!.getViewerContainer();
-    if (!viewerContainer) return;
+    const startScreen = this.container.querySelector('#start-screen');
+    startScreen?.classList.add('hidden');
+
+    const loadingScreen = this.container.querySelector('#loading-screen');
+    loadingScreen?.classList.remove('hidden');
+
+    const viewerContainer = document.createElement('div');
+    viewerContainer.id = 'viewer-container';
+    viewerContainer.className = 'viewer-container';
+    this.container.appendChild(viewerContainer);
 
     this.viewer = new Viewer360(viewerContainer, this.videoManager, {
       fov: 75,
@@ -101,17 +146,19 @@ export class App {
       this.videoScrubber,
       this.cameraController,
       this.timelineController,
-      this.capabilities!,
-      this.performanceTier!
+      this.capabilities!
     );
 
-    this.bindControllerEvents();
+    this.bindUIEvents();
+
+    loadingScreen?.classList.add('hidden');
     await this.videoManager.play();
   }
 
-  private bindControllerEvents(): void {
-    if (!this.cameraController || !this.timelineController || !this.uiManager) return;
+  private bindUIEvents(): void {
+    if (!this.uiManager || !this.cameraController || !this.timelineController) return;
 
+    // Camera controller events
     this.cameraController.on('seek', (e) => {
       this.timelineController!.nudge(e.delta);
     });
@@ -150,6 +197,7 @@ export class App {
       this.uiManager!.setGyroState(false);
     });
 
+    // UI Manager events
     this.uiManager.on('startExperience', () => this.startExperience());
     this.uiManager.on('playPause', () => {
       if (this.videoManager.getState() === 'playing') {

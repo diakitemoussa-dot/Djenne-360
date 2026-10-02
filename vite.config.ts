@@ -15,18 +15,19 @@ export default defineConfig({
         background_color: '#0a0a0a',
         display: 'fullscreen',
         orientation: 'any',
-        start_url: '/',
+        start_url: '/Djenne-360/',
+        scope: '/Djenne-360/',
         icons: [
           {
-            src: 'icon-192.png',
+            src: 'favicon.svg',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'any maskable'
           },
           {
-            src: 'icon-512.png',
+            src: 'favicon.svg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'any maskable'
           }
         ]

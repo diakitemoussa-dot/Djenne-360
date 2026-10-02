@@ -1,8 +1,6 @@
 import './style.css';
 import { App } from './core/App';
 
-declare const importMeta: ImportMeta & { hot?: { accept: () => void; dispose: (fn: () => void) => void } };
-
 let app: App | null = null;
 
 async function main(): Promise<void> {
@@ -37,9 +35,10 @@ if (document.readyState === 'loading') {
   main();
 }
 
-if (importMeta.hot) {
-  importMeta.hot.accept();
-  importMeta.hot.dispose(() => {
+// HMR handling for Vite
+if (typeof import.meta !== 'undefined' && (import.meta as any).hot) {
+  (import.meta as any).hot.accept();
+  (import.meta as any).hot.dispose(() => {
     app?.destroy();
     app = null;
   });
