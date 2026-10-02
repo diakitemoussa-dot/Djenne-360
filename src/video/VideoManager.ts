@@ -42,24 +42,146 @@ export class VideoManager extends EventEmitter<VideoManagerEvents> {
     return video;
   }
 
+  private logVideoState(label: string): void {
+    const v = this.video;
+    console.log(`[VIDEO DEBUG] ${label}`);
+    console.log(`  src: ${v.src}`);
+    console.log(`  readyState: ${v.readyState} (${this.readyStateToString(v.readyState)})`);
+    console.log(`  networkState: ${v.networkState} (${this.networkStateToString(v.networkState)})`);
+    console.log(`  duration: ${v.duration}`);
+    console.log(`  currentTime: ${v.currentTime}`);
+    console.log(`  videoWidth: ${v.videoWidth}`);
+    console.log(`  videoHeight: ${v.videoHeight}`);
+    console.log(`  error: ${v.error ? v.error.message : 'null'}`);
+    console.log(`  error.code: ${v.error ? v.error.code : 'N/A'}`);
+    console.log(`  paused: ${v.paused}`);
+    console.log(`  muted: ${v.muted}`);
+    console.log(`  ended: ${v.ended}`);
+    console.log(`  buffered: ${v.buffered.length > 0 ? v.buffered.end(v.buffered.length - 1) : 0}`);
+  }
+
+  private readyStateToString(state: number): string {
+    const states = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'];
+    return states[state] || 'UNKNOWN';
+  }
+
+  private networkStateToString(state: number): string {
+    const states = ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'];
+    return states[state] || 'UNKNOWN';
+  }
+
   private setupEventListeners(): void {
-    this.video.addEventListener('loadstart', () => this.setState('loading'));
-    this.video.addEventListener('loadedmetadata', () => this.onLoadedMetadata());
-    this.video.addEventListener('loadeddata', () => this.onLoadedData());
-    this.video.addEventListener('canplay', () => this.onCanPlay());
-    this.video.addEventListener('canplaythrough', () => this.setState('ready'));
-    this.video.addEventListener('play', () => this.setState('playing'));
-    this.video.addEventListener('pause', () => this.setState('paused'));
-    this.video.addEventListener('timeupdate', () => this.emit('timeupdate', this.video.currentTime));
-    this.video.addEventListener('durationchange', () => this.emit('durationchange', this.video.duration));
-    this.video.addEventListener('progress', () => this.onProgress());
-    this.video.addEventListener('waiting', () => this.setState('buffering'));
-    this.video.addEventListener('seeking', () => { this.isSeeking = true; });
-    this.video.addEventListener('seeked', () => this.onSeeked());
-    this.video.addEventListener('ended', () => { this.setState('ended'); this.emit('ended'); });
-    this.video.addEventListener('error', () => this.onError());
-    this.video.addEventListener('abort', () => this.onError());
-    this.video.addEventListener('stalled', () => this.setState('buffering'));
+    this.video.addEventListener('loadstart', () => {
+      console.log('[VIDEO EVENT] loadstart');
+      this.logVideoState('loadstart');
+      this.setState('loading');
+    });
+
+    this.video.addEventListener('loadedmetadata', () => {
+      console.log('[VIDEO EVENT] loadedmetadata');
+      this.logVideoState('loadedmetadata');
+      console.log(`  >>> DURATION: ${this.video.duration}s`);
+      console.log(`  >>> RESOLUTION: ${this.video.videoWidth}x${this.video.videoHeight}`);
+      this.onLoadedMetadata();
+    });
+
+    this.video.addEventListener('loadeddata', () => {
+      console.log('[VIDEO EVENT] loadeddata');
+      this.logVideoState('loadeddata');
+      this.onLoadedData();
+    });
+
+    this.video.addEventListener('canplay', () => {
+      console.log('[VIDEO EVENT] canplay');
+      this.logVideoState('canplay');
+      console.log('>>> VIDEO CANPLAY OK');
+      this.onCanPlay();
+    });
+
+    this.video.addEventListener('canplaythrough', () => {
+      console.log('[VIDEO EVENT] canplaythrough');
+      this.logVideoState('canplaythrough');
+      this.setState('ready');
+    });
+
+    this.video.addEventListener('progress', () => {
+      console.log('[VIDEO EVENT] progress');
+      this.onProgress();
+    });
+
+    this.video.addEventListener('durationchange', () => {
+      console.log('[VIDEO EVENT] durationchange');
+      this.logVideoState('durationchange');
+      this.emit('durationchange', this.video.duration);
+    });
+
+    this.video.addEventListener('loaded', () => {
+      console.log('[VIDEO EVENT] loaded');
+      this.logVideoState('loaded');
+    });
+
+    this.video.addEventListener('waiting', () => {
+      console.log('[VIDEO EVENT] waiting');
+      this.setState('buffering');
+    });
+
+    this.video.addEventListener('stalled', () => {
+      console.log('[VIDEO EVENT] stalled');
+      this.setState('buffering');
+    });
+
+    this.video.addEventListener('seeking', () => {
+      console.log('[VIDEO EVENT] seeking');
+      this.isSeeking = true;
+    });
+
+    this.video.addEventListener('seeked', () => {
+      console.log('[VIDEO EVENT] seeked');
+      this.onSeeked();
+    });
+
+    this.video.addEventListener('ended', () => {
+      console.log('[VIDEO EVENT] ended');
+      this.setState('ended');
+      this.emit('ended');
+    });
+
+    this.video.addEventListener('error', () => {
+      console.log('[VIDEO EVENT] error');
+      this.onError();
+    });
+
+    this.video.addEventListener('abort', () => {
+      console.log('[VIDEO EVENT] abort');
+      this.onError();
+    });
+
+    this.video.addEventListener('stalled', () => {
+      console.log('[VIDEO EVENT] stalled (duplicate)');
+      this.setState('buffering');
+    });
+
+    this.video.addEventListener('play', () => {
+      console.log('[VIDEO EVENT] play');
+      this.setState('playing');
+    });
+
+    this.video.addEventListener('pause', () => {
+      console.log('[VIDEO EVENT] pause');
+      this.setState('paused');
+    });
+
+    this.video.addEventListener('playing', () => {
+      console.log('[VIDEO EVENT] playing');
+    });
+
+    this.video.addEventListener('timeupdate', () => {
+      this.emit('timeupdate', this.video.currentTime);
+    });
+
+    this.video.addEventListener('durationchange', () => {
+      this.emit('durationchange', this.video.duration);
+    });
   }
 
   private onLoadedMetadata(): void {
