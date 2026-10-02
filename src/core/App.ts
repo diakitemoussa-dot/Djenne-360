@@ -18,7 +18,9 @@ export class App {
   private capabilities: Capabilities | null = null;
   private performanceTier: PerformanceTier | null = null;
   private isInitialized = false;
-  private videoUrl = '/Djenne-360/Djenne_360.mp4';
+  // Test with a known working 360° video from Three.js examples
+private videoUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/360_video.mp4';
+// private videoUrl = '/Djenne-360/Djenne_360.mp4';
   private _isFullscreen = false;
 
   constructor(container: HTMLElement) {
