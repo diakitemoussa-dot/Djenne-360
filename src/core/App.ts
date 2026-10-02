@@ -18,8 +18,8 @@ export class App {
   private capabilities: Capabilities | null = null;
   private performanceTier: PerformanceTier | null = null;
   private isInitialized = false;
-  // Test with a known working 360° video from Three.js examples
-private videoUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/360_video.mp4';
+  // Test with a known working 360° video from Three.js via jsDelivr CDN (proper CORS headers)
+private videoUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/360_video.mp4';
 // private videoUrl = '/Djenne-360/Djenne_360.mp4';
   private _isFullscreen = false;
 
@@ -167,15 +167,20 @@ private videoUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/dev/exampl
       console.error('Video error:', err);
       this.uiManager?.showError('Erreur vidéo: ' + err.message);
       loadingScreen?.classList.add('hidden');
-    });
+});
 
-    // Wait for viewer to be ready before playing
-    await new Promise<void>((resolve) => {
-      if (this.viewer!.getVideoTexture()) {
-        resolve();
-      } else {
-        this.viewer!.once('ready', resolve);
-      }
+// Wait for viewer to be ready before playing (with timeout)
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        if (this.viewer!.getVideoTexture()) {
+          resolve();
+        } else {
+          this.viewer!.once('ready', resolve);
+        }
+      }),
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Viewer ready timeout')), 15000))
+    ]).catch(() => {
+      console.warn('Viewer ready timeout, continuing anyway');
     });
 
     // Wait for video to have enough data to play smoothly
