@@ -24,9 +24,11 @@ export class VideoManager extends EventEmitter<VideoManagerEvents> {
   private isSeeking = false;
   private seekResolve: ((value: void) => void) | null = null;
   private lastBufferedEnd = 0;
+  private initialTime = 0;
 
-  constructor() {
+  constructor(initialTime = 0) {
     super();
+    this.initialTime = initialTime;
     this.video = this.createVideoElement();
     this.setupEventListeners();
   }
@@ -80,6 +82,9 @@ export class VideoManager extends EventEmitter<VideoManagerEvents> {
 
   private onCanPlay(): void {
     this.emit('canplay');
+    if (this.initialTime > 0 && this.video.duration >= this.initialTime) {
+      this.video.currentTime = this.initialTime;
+    }
   }
 
   private onProgress(): void {

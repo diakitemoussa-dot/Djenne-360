@@ -23,7 +23,7 @@ export class App {
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.videoManager = new VideoManager();
+    this.videoManager = new VideoManager(8);
     this.videoScrubber = new VideoScrubber(this.videoManager);
   }
 
