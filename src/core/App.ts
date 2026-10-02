@@ -176,9 +176,21 @@ export class App {
       }
     });
 
+    // Wait for video to have enough data to play smoothly
+    await new Promise<void>((resolve) => {
+      const video = this.videoManager.getVideoElement();
+      if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        resolve();
+      } else {
+        video.addEventListener('canplay', () => resolve(), { once: true });
+      }
+    });
+
     loadingScreen?.classList.add('hidden');
     try {
+      console.log('Starting video playback...');
       await this.videoManager.play();
+      console.log('Video playing successfully');
     } catch (err) {
       console.error('Play failed:', err);
       this.uiManager?.showError('Impossible de lire la vidéo: ' + (err as Error).message);
