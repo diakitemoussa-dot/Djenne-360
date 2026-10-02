@@ -1,6 +1,12 @@
 import './style.css';
 import { App } from './core/App';
 
+// Enable debug video overlay with ?debug=video
+if (new URLSearchParams(window.location.search).get('debug') === 'video') {
+  (window as any).__DEBUG_VIDEO__ = true;
+  console.log('Debug video mode enabled');
+}
+
 let app: App | null = null;
 
 async function main(): Promise<void> {

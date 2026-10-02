@@ -125,7 +125,23 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
       material.map = this.videoTexture;
       material.needsUpdate = true;
 
-      console.log('VideoTexture created, video readyState:', video.readyState);
+      console.log('VideoTexture created, video readyState:', video.readyState, 'video.src:', video.src);
+
+      // Debug: add video element to DOM temporarily to verify it plays
+      if (typeof window !== 'undefined' && (window as any).__DEBUG_VIDEO__) {
+        const debugVideo = video.cloneNode(true) as HTMLVideoElement;
+        debugVideo.style.position = 'fixed';
+        debugVideo.style.bottom = '10px';
+        debugVideo.style.right = '10px';
+        debugVideo.style.width = '320px';
+        debugVideo.style.height = '180px';
+        debugVideo.style.zIndex = '9999';
+        debugVideo.style.border = '2px solid red';
+        debugVideo.controls = true;
+        debugVideo.muted = false;
+        document.body.appendChild(debugVideo);
+        console.log('Debug video added to DOM');
+      }
     };
 
     // If video already has metadata, create texture immediately
@@ -210,6 +226,11 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     this.fovCurrent = THREE.MathUtils.lerp(this.fovCurrent, this.fovTarget, 0.1);
     this.camera.fov = this.fovCurrent;
     this.camera.updateProjectionMatrix();
+
+    // Ensure VideoTexture updates every frame
+    if (this.videoTexture) {
+      this.videoTexture.needsUpdate = true;
+    }
 
     this.renderer.render(this.scene, this.camera);
     this.emit('render');
