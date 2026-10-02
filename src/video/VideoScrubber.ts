@@ -41,6 +41,8 @@ export class VideoScrubber extends EventEmitter<VideoScrubberEvents> {
     const targetTime = Math.max(0, Math.min(progress * duration, duration));
     this.requestedTime = targetTime;
 
+    console.log('[VideoScrubber] requestSeek:', progress, '->', targetTime);
+
     if (!this.isScrubbing) {
       this.isScrubbing = true;
       this.emit('scrubStart');
@@ -69,11 +71,14 @@ export class VideoScrubber extends EventEmitter<VideoScrubberEvents> {
 
   private executeSeek(): void {
     if (this.isSeeking) {
+      console.log('[VideoScrubber] executeSeek skipped - already seeking');
       return;
     }
 
     this.isSeeking = true;
     this.currentSeekTime = this.requestedTime;
+
+    console.log('[VideoScrubber] executeSeek to:', this.currentSeekTime);
 
     this.videoManager.seekTo(this.currentSeekTime).then(() => {
       this.isSeeking = false;

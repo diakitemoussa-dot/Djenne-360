@@ -61,6 +61,8 @@ export class TimelineController extends EventEmitter<TimelineControllerEvents> {
     const progressChange = delta * 0.01;
     this.scrollAccumulator += progressChange;
 
+    console.log('[TimelineController] wheel:', delta, 'progressChange:', progressChange, 'accumulator:', this.scrollAccumulator);
+
     if (now - this.lastScrollTime > 16) {
       this.applyScroll();
       this.lastScrollTime = now;
@@ -78,6 +80,7 @@ export class TimelineController extends EventEmitter<TimelineControllerEvents> {
   private applyScroll(): void {
     const currentProgress = this.videoManager.getCurrentTime() / this.videoManager.getDuration();
     const newProgress = Math.max(0, Math.min(1, currentProgress + this.scrollAccumulator));
+    console.log('[TimelineController] applyScroll:', currentProgress, '->', newProgress);
     this.videoScrubber.seekToProgress(newProgress);
     this.scrollAccumulator = 0;
   }
@@ -90,6 +93,7 @@ export class TimelineController extends EventEmitter<TimelineControllerEvents> {
       this.dragStartProgress = duration > 0 ? this.videoManager.getCurrentTime() / duration : 0;
       this.videoScrubber.requestSeek(this.dragStartProgress);
       this.emit('scrubStart');
+      console.log('[TimelineController] touchStart, progress:', this.dragStartProgress);
     }
   }
 
@@ -101,6 +105,7 @@ export class TimelineController extends EventEmitter<TimelineControllerEvents> {
     const progressChange = deltaY / window.innerHeight;
     const newProgress = Math.max(0, Math.min(1, this.dragStartProgress + progressChange));
     this.videoScrubber.requestSeek(newProgress);
+    console.log('[TimelineController] touchMove, deltaY:', deltaY, 'progressChange:', progressChange, 'newProgress:', newProgress);
   }
 
   private onTouchEnd(): void {
@@ -108,6 +113,7 @@ export class TimelineController extends EventEmitter<TimelineControllerEvents> {
       this.isDragging = false;
       this.videoScrubber.endScrub();
       this.emit('scrubEnd');
+      console.log('[TimelineController] touchEnd');
     }
   }
 
