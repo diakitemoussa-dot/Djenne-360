@@ -18,9 +18,10 @@ export class App {
   private capabilities: Capabilities | null = null;
   private performanceTier: PerformanceTier | null = null;
   private isInitialized = false;
-  // Test with a known working 360° video from Three.js via jsDelivr CDN (proper CORS headers)
-private videoUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/360_video.mp4';
-// private videoUrl = '/Djenne-360/Djenne_360.mp4';
+  // Votre vidéo locale (même origine = pas de CORS)
+private videoUrl = '/Djenne-360/Djenne_360.mp4';
+// Test videos (commented):
+// private videoUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/360_video.mp4';
   private _isFullscreen = false;
 
   constructor(container: HTMLElement) {
