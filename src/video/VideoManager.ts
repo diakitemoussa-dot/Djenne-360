@@ -38,7 +38,6 @@ export class VideoManager extends EventEmitter<VideoManagerEvents> {
     video.playsInline = true;
     video.muted = true;
     video.preload = 'auto';
-    video.crossOrigin = 'anonymous';
     video.disableRemotePlayback = true;
     return video;
   }

@@ -149,16 +149,6 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     this.debugLog('video.paused:', video.paused);
     this.debugLog('video.muted:', video.muted);
 
-    // FIRST: Apply a test RED material immediately to verify rendering works
-    const testMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000, // Bright red - should be visible immediately
-      side: THREE.BackSide,
-      depthWrite: false,
-      toneMapped: false
-    });
-    this.sphere.material = testMaterial;
-    this.debugLog('TEST MATERIAL (RED) applied to sphere - you should see RED sphere');
-
     // Wait for video to have metadata before creating texture
     const createTexture = () => {
       this.debugLog('Creating VideoTexture...');
@@ -181,28 +171,6 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
       this.debugLog('VideoTexture created:', this.videoTexture);
       this.debugLog('VideoTexture.image:', this.videoTexture.image);
       this.debugLog('Sphere material.map:', material.map);
-
-      // Debug: add video element to DOM temporarily to verify it plays
-      if (typeof window !== 'undefined' && (window as any).__DEBUG_VIDEO__) {
-        const debugVideo = video.cloneNode(true) as HTMLVideoElement;
-        debugVideo.style.position = 'fixed';
-        debugVideo.style.bottom = '10px';
-        debugVideo.style.right = '10px';
-        debugVideo.style.width = '320px';
-        debugVideo.style.height = '180px';
-        debugVideo.style.zIndex = '9999';
-        debugVideo.style.border = '2px solid red';
-        debugVideo.controls = true;
-        debugVideo.muted = false;
-        document.body.appendChild(debugVideo);
-        this.debugLog('Debug video added to DOM');
-      }
-
-      // Force video to play
-      if (video.paused) {
-        this.debugLog('Video was paused, calling play()...');
-        video.play().catch(e => this.debugLog('Video play failed:', e));
-      }
     };
 
     // If video already has metadata, create texture immediately

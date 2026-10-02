@@ -7,6 +7,9 @@ import { UIManager } from '../ui/UIManager';
 import { CapabilityDetector } from './CapabilityDetector';
 import { Capabilities, PerformanceTier, VideoQuality } from '../types';
 
+// Vite injects BASE_URL at build time
+declare const BASE_URL: string;
+
 export class App {
   private container: HTMLElement;
   private videoManager: VideoManager;
@@ -18,14 +21,12 @@ export class App {
   private capabilities: Capabilities | null = null;
   private performanceTier: PerformanceTier | null = null;
   private isInitialized = false;
-  // Votre vidéo locale (même origine = pas de CORS)
-private videoUrl = '/Djenne-360/Djenne_360.mp4';
-// Test videos (commented):
-// private videoUrl = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/360_video.mp4';
+  private videoUrl: string;
   private _isFullscreen = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.videoUrl = `${BASE_URL}Djenne_360.mp4`;
     this.videoManager = new VideoManager(8);
     this.videoScrubber = new VideoScrubber(this.videoManager);
   }
@@ -185,40 +186,17 @@ private videoUrl = '/Djenne-360/Djenne_360.mp4';
     });
 
     // Wait for video to have enough data to play smoothly
-    console.log('Waiting for video canplay...');
     const video = this.videoManager.getVideoElement();
-    console.log('Video element:', video);
-    console.log('Video readyState:', video.readyState);
-    console.log('Video src:', video.src);
-    console.log('Video duration:', video.duration);
-    console.log('Video networkState:', video.networkState);
-    console.log('Video error:', video.error);
-
-    if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
-      console.log('Video already has enough data');
-    } else {
+    if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
       await new Promise<void>((resolve) => {
-        video.addEventListener('canplay', () => {
-          console.log('canplay fired, readyState:', video.readyState);
-          resolve();
-        }, { once: true });
-        // Timeout fallback
-        setTimeout(() => {
-          console.log('Timeout waiting for canplay, resolving anyway');
-          resolve();
-        }, 10000);
+        video.addEventListener('canplay', () => resolve(), { once: true });
+        setTimeout(() => resolve(), 10000);
       });
     }
 
     loadingScreen?.classList.add('hidden');
     try {
-      console.log('Starting video playback...');
-      console.log('Video paused:', video.paused);
-      console.log('Video muted:', video.muted);
-      console.log('Video currentTime:', video.currentTime);
       await this.videoManager.play();
-      console.log('Video playing successfully');
-      console.log('Video paused after play:', video.paused);
     } catch (err) {
       console.error('Play failed:', err);
       this.uiManager?.showError('Impossible de lire la vidéo: ' + (err as Error).message);
