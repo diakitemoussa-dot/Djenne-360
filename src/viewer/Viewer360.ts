@@ -26,6 +26,13 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
   private pixelRatio = 1;
   private fovTarget = 75;
   private fovCurrent = 75;
+  private debugMode = false;
+
+  private debugLog(...args: unknown[]): void {
+    if (this.debugMode) {
+      console.log('[Viewer360]', ...args);
+    }
+  }
 
   constructor(container: HTMLElement, videoManager: VideoManager, config?: Partial<ViewerConfig>, capabilities?: Capabilities) {
     super();
@@ -43,10 +50,30 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     this.fovTarget = this.config.fov;
     this.fovCurrent = this.config.fov;
 
+    // Check for debug mode
+    this.debugMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'video';
+
+    if (this.debugMode) {
+      console.log('=== VIEWER360 DEBUG MODE ENABLED ===');
+      this.debugLog('Container:', container);
+      this.debugLog('Container size:', container.clientWidth, 'x', container.clientHeight);
+    }
+
     this.renderer = this.createRenderer();
     this.scene = this.createScene();
     this.camera = this.createCamera();
     this.sphere = this.createSphere();
+
+    if (this.debugMode) {
+      this.debugLog('Renderer:', this.renderer);
+      this.debugLog('Scene:', this.scene);
+      this.debugLog('Camera:', this.camera);
+      this.debugLog('Sphere:', this.sphere);
+      this.debugLog('Camera position:', this.camera.position);
+      this.debugLog('Camera fov:', this.camera.fov);
+      this.debugLog('Sphere geometry:', this.sphere.geometry);
+      this.debugLog('Sphere material:', this.sphere.material);
+    }
 
     this.setupVideoTexture();
     this.setupResizeHandler();
@@ -112,8 +139,17 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
   private setupVideoTexture(): void {
     const video = this.videoManager.getVideoElement();
 
+    this.debugLog('setupVideoTexture called, video element:', video);
+    this.debugLog('video.readyState:', video.readyState);
+    this.debugLog('video.src:', video.src);
+    this.debugLog('video.duration:', video.duration);
+    this.debugLog('video.currentTime:', video.currentTime);
+    this.debugLog('video.networkState:', video.networkState);
+    this.debugLog('video.error:', video.error);
+
     // Wait for video to have metadata before creating texture
     const createTexture = () => {
+      this.debugLog('Creating VideoTexture...');
       this.videoTexture = new THREE.VideoTexture(video);
       this.videoTexture.colorSpace = THREE.SRGBColorSpace;
       this.videoTexture.minFilter = THREE.LinearFilter;
@@ -125,7 +161,9 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
       material.map = this.videoTexture;
       material.needsUpdate = true;
 
-      console.log('VideoTexture created, video readyState:', video.readyState, 'video.src:', video.src);
+      this.debugLog('VideoTexture created:', this.videoTexture);
+      this.debugLog('VideoTexture image:', this.videoTexture.image);
+      this.debugLog('Sphere material.map:', material.map);
 
       // Debug: add video element to DOM temporarily to verify it plays
       if (typeof window !== 'undefined' && (window as any).__DEBUG_VIDEO__) {
@@ -140,40 +178,69 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
         debugVideo.controls = true;
         debugVideo.muted = false;
         document.body.appendChild(debugVideo);
-        console.log('Debug video added to DOM');
+        this.debugLog('Debug video added to DOM');
       }
     };
 
     // If video already has metadata, create texture immediately
     if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      this.debugLog('Video already has metadata, creating texture immediately');
       createTexture();
     } else {
-      video.addEventListener('loadedmetadata', createTexture, { once: true });
+      this.debugLog('Waiting for loadedmetadata event...');
+      video.addEventListener('loadedmetadata', () => {
+        this.debugLog('loadedmetadata fired');
+        createTexture();
+      }, { once: true });
     }
 
     video.addEventListener('loadeddata', () => {
-      console.log('Video loadeddata, readyState:', video.readyState);
+      this.debugLog('loadeddata fired, readyState:', video.readyState);
     });
 
     video.addEventListener('canplay', () => {
-      console.log('Video canplay, duration:', video.duration, 'currentTime:', video.currentTime);
+      this.debugLog('canplay fired, duration:', video.duration, 'currentTime:', video.currentTime);
       this.emit('ready');
+    });
+
+    video.addEventListener('canplaythrough', () => {
+      this.debugLog('canplaythrough fired');
     });
 
     video.addEventListener('error', () => {
       const err = video.error;
-      console.error('Video error:', err);
+      this.debugLog('Video error event:', err);
       if (err && err.code !== MediaError.MEDIA_ERR_ABORTED) {
         this.emit('error', new Error('Video load failed: ' + (err.message || 'Unknown')));
       }
     });
 
     video.addEventListener('stalled', () => {
-      console.warn('Video stalled');
+      this.debugLog('stalled fired');
     });
 
     video.addEventListener('waiting', () => {
-      console.log('Video waiting for data');
+      this.debugLog('waiting fired');
+    });
+
+    video.addEventListener('play', () => {
+      this.debugLog('play fired');
+    });
+
+    video.addEventListener('playing', () => {
+      this.debugLog('playing fired');
+    });
+
+    video.addEventListener('pause', () => {
+      this.debugLog('pause fired');
+    });
+
+    video.addEventListener('seeking', () => {
+      this.debugLog('seeking fired');
+    });
+
+    video.addEventListener('seeked', () => {
+      this.debugLog('seeked fired, currentTime:', video.currentTime);
     });
 
     // DO NOT call video.load() here - VideoManager handles loading
@@ -230,6 +297,16 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     // Ensure VideoTexture updates every frame
     if (this.videoTexture) {
       this.videoTexture.needsUpdate = true;
+    }
+
+    // Debug: log first few frames
+    if (this.debugMode && this.animationId !== null && this.animationId < 5) {
+      this.debugLog('Render frame:', this.animationId);
+      this.debugLog('  videoTexture:', this.videoTexture);
+      this.debugLog('  videoTexture.image:', this.videoTexture?.image);
+      this.debugLog('  sphere.material.map:', (this.sphere.material as THREE.MeshBasicMaterial).map);
+      this.debugLog('  camera.position:', this.camera.position);
+      this.debugLog('  camera.rotation:', this.camera.rotation);
     }
 
     this.renderer.render(this.scene, this.camera);
