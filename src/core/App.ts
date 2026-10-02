@@ -177,20 +177,40 @@ export class App {
     });
 
     // Wait for video to have enough data to play smoothly
-    await new Promise<void>((resolve) => {
-      const video = this.videoManager.getVideoElement();
-      if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
-        resolve();
-      } else {
-        video.addEventListener('canplay', () => resolve(), { once: true });
-      }
-    });
+    console.log('Waiting for video canplay...');
+    const video = this.videoManager.getVideoElement();
+    console.log('Video element:', video);
+    console.log('Video readyState:', video.readyState);
+    console.log('Video src:', video.src);
+    console.log('Video duration:', video.duration);
+    console.log('Video networkState:', video.networkState);
+    console.log('Video error:', video.error);
+
+    if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      console.log('Video already has enough data');
+    } else {
+      await new Promise<void>((resolve) => {
+        video.addEventListener('canplay', () => {
+          console.log('canplay fired, readyState:', video.readyState);
+          resolve();
+        }, { once: true });
+        // Timeout fallback
+        setTimeout(() => {
+          console.log('Timeout waiting for canplay, resolving anyway');
+          resolve();
+        }, 10000);
+      });
+    }
 
     loadingScreen?.classList.add('hidden');
     try {
       console.log('Starting video playback...');
+      console.log('Video paused:', video.paused);
+      console.log('Video muted:', video.muted);
+      console.log('Video currentTime:', video.currentTime);
       await this.videoManager.play();
       console.log('Video playing successfully');
+      console.log('Video paused after play:', video.paused);
     } catch (err) {
       console.error('Play failed:', err);
       this.uiManager?.showError('Impossible de lire la vidéo: ' + (err as Error).message);
