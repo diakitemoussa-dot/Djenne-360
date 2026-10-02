@@ -88,4 +88,14 @@ declare global {
   interface XRSystem {
     isSessionSupported(mode: string): Promise<boolean>;
   }
+
+  interface ImportMeta {
+    readonly env: {
+      readonly BASE_URL: string;
+      readonly MODE: string;
+      readonly DEV: boolean;
+      readonly PROD: boolean;
+      readonly SSR: boolean;
+    };
+  }
 }

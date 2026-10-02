@@ -7,9 +7,6 @@ import { UIManager } from '../ui/UIManager';
 import { CapabilityDetector } from './CapabilityDetector';
 import { Capabilities, PerformanceTier, VideoQuality } from '../types';
 
-// Vite injects BASE_URL at build time
-declare const BASE_URL: string;
-
 export class App {
   private container: HTMLElement;
   private videoManager: VideoManager;
@@ -26,7 +23,7 @@ export class App {
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.videoUrl = `${BASE_URL}Djenne_360.mp4`;
+    this.videoUrl = `${import.meta.env.BASE_URL}Djenne_360.mp4`;
     this.videoManager = new VideoManager(8);
     this.videoScrubber = new VideoScrubber(this.videoManager);
   }
