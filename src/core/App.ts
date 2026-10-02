@@ -167,6 +167,15 @@ export class App {
       loadingScreen?.classList.add('hidden');
     });
 
+    // Wait for viewer to be ready before playing
+    await new Promise<void>((resolve) => {
+      if (this.viewer!.getVideoTexture()) {
+        resolve();
+      } else {
+        this.viewer!.once('ready', resolve);
+      }
+    });
+
     loadingScreen?.classList.add('hidden');
     try {
       await this.videoManager.play();

@@ -112,16 +112,28 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
   private setupVideoTexture(): void {
     const video = this.videoManager.getVideoElement();
 
-    this.videoTexture = new THREE.VideoTexture(video);
-    this.videoTexture.colorSpace = THREE.SRGBColorSpace;
-    this.videoTexture.minFilter = THREE.LinearFilter;
-    this.videoTexture.magFilter = THREE.LinearFilter;
-    this.videoTexture.generateMipmaps = false;
-    this.videoTexture.flipY = false;
+    // Wait for video to have metadata before creating texture
+    const createTexture = () => {
+      this.videoTexture = new THREE.VideoTexture(video);
+      this.videoTexture.colorSpace = THREE.SRGBColorSpace;
+      this.videoTexture.minFilter = THREE.LinearFilter;
+      this.videoTexture.magFilter = THREE.LinearFilter;
+      this.videoTexture.generateMipmaps = false;
+      this.videoTexture.flipY = false;
 
-    const material = this.sphere.material as THREE.MeshBasicMaterial;
-    material.map = this.videoTexture;
-    material.needsUpdate = true;
+      const material = this.sphere.material as THREE.MeshBasicMaterial;
+      material.map = this.videoTexture;
+      material.needsUpdate = true;
+
+      console.log('VideoTexture created, video readyState:', video.readyState);
+    };
+
+    // If video already has metadata, create texture immediately
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      createTexture();
+    } else {
+      video.addEventListener('loadedmetadata', createTexture, { once: true });
+    }
 
     video.addEventListener('loadeddata', () => {
       console.log('Video loadeddata, readyState:', video.readyState);
@@ -133,8 +145,11 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     });
 
     video.addEventListener('error', () => {
-      console.error('Video error:', video.error);
-      this.emit('error', new Error('Video load failed: ' + (video.error?.message || 'Unknown')));
+      const err = video.error;
+      console.error('Video error:', err);
+      if (err && err.code !== MediaError.MEDIA_ERR_ABORTED) {
+        this.emit('error', new Error('Video load failed: ' + (err.message || 'Unknown')));
+      }
     });
 
     video.addEventListener('stalled', () => {
@@ -145,8 +160,7 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
       console.log('Video waiting for data');
     });
 
-    // Force video to load
-    video.load();
+    // DO NOT call video.load() here - VideoManager handles loading
   }
 
   private setupResizeHandler(): void {
@@ -263,6 +277,10 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
 
   getPixelRatio(): number {
     return this.pixelRatio;
+  }
+
+  getVideoTexture(): THREE.VideoTexture | null {
+    return this.videoTexture;
   }
 
   setPixelRatio(ratio: number): void {

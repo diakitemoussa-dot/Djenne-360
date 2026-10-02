@@ -83,7 +83,12 @@ export class VideoManager extends EventEmitter<VideoManagerEvents> {
   private onCanPlay(): void {
     this.emit('canplay');
     if (this.initialTime > 0 && this.video.duration >= this.initialTime) {
-      this.video.currentTime = this.initialTime;
+      // Use a small delay to ensure the video is stable before seeking
+      setTimeout(() => {
+        if (this.video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          this.video.currentTime = this.initialTime;
+        }
+      }, 0);
     }
   }
 
