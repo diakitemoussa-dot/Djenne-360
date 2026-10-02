@@ -123,13 +123,30 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     material.map = this.videoTexture;
     material.needsUpdate = true;
 
-    this.videoManager.on('canplay', () => {
+    video.addEventListener('loadeddata', () => {
+      console.log('Video loadeddata, readyState:', video.readyState);
+    });
+
+    video.addEventListener('canplay', () => {
+      console.log('Video canplay, duration:', video.duration, 'currentTime:', video.currentTime);
       this.emit('ready');
     });
 
-    this.videoManager.on('error', (err) => {
-      this.emit('error', err);
+    video.addEventListener('error', () => {
+      console.error('Video error:', video.error);
+      this.emit('error', new Error('Video load failed: ' + (video.error?.message || 'Unknown')));
     });
+
+    video.addEventListener('stalled', () => {
+      console.warn('Video stalled');
+    });
+
+    video.addEventListener('waiting', () => {
+      console.log('Video waiting for data');
+    });
+
+    // Force video to load
+    video.load();
   }
 
   private setupResizeHandler(): void {

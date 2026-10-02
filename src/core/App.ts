@@ -137,6 +137,16 @@ export class App {
       autoRotateSpeed: 0.0005
     }, this.capabilities!);
 
+    this.viewer.on('error', (err) => {
+      console.error('Viewer error:', err);
+      this.uiManager?.showError('Erreur de rendu 3D: ' + err.message);
+      loadingScreen?.classList.add('hidden');
+    });
+
+    this.viewer.on('ready', () => {
+      console.log('Viewer ready');
+    });
+
     this.cameraController = new CameraController(this.viewer, viewerContainer);
     this.timelineController = new TimelineController(this.container, this.videoManager, this.videoScrubber);
 
@@ -151,8 +161,19 @@ export class App {
 
     this.bindUIEvents();
 
+    this.videoManager.on('error', (err) => {
+      console.error('Video error:', err);
+      this.uiManager?.showError('Erreur vidéo: ' + err.message);
+      loadingScreen?.classList.add('hidden');
+    });
+
     loadingScreen?.classList.add('hidden');
-    await this.videoManager.play();
+    try {
+      await this.videoManager.play();
+    } catch (err) {
+      console.error('Play failed:', err);
+      this.uiManager?.showError('Impossible de lire la vidéo: ' + (err as Error).message);
+    }
   }
 
   private bindUIEvents(): void {
