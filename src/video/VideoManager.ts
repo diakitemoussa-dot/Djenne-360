@@ -114,28 +114,34 @@ export class VideoManager extends EventEmitter<VideoManagerEvents> {
 
   private onError(): void {
     const error = this.video.error;
+    
+    // No actual error (code 0 = MEDIA_ERR_NONE), ignore
+    if (!error || error.code === 0) {
+      return;
+    }
+
+    // MEDIA_ERR_ABORTED often happens during normal seek/load operations, not fatal
+    if (error.code === MediaError.MEDIA_ERR_ABORTED) {
+      console.debug('Video load aborted (likely seek/load transition), ignoring');
+      return;
+    }
+
     let code: VideoError['code'] = 'UNKNOWN';
     let recoverable = false;
 
-    if (error) {
-      switch (error.code) {
-        case MediaError.MEDIA_ERR_NETWORK:
-          code = 'NETWORK_ERROR';
-          recoverable = true;
-          break;
-        case MediaError.MEDIA_ERR_DECODE:
-          code = 'DECODE_ERROR';
-          recoverable = false;
-          break;
-        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-          code = 'NOT_SUPPORTED';
-          recoverable = false;
-          break;
-        case MediaError.MEDIA_ERR_ABORTED:
-          code = 'NETWORK_ERROR';
-          recoverable = true;
-          break;
-      }
+    switch (error.code) {
+      case MediaError.MEDIA_ERR_NETWORK:
+        code = 'NETWORK_ERROR';
+        recoverable = true;
+        break;
+      case MediaError.MEDIA_ERR_DECODE:
+        code = 'DECODE_ERROR';
+        recoverable = false;
+        break;
+      case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+        code = 'NOT_SUPPORTED';
+        recoverable = false;
+        break;
     }
 
     const videoError: VideoError = new Error(error?.message || 'Video error') as VideoError;
