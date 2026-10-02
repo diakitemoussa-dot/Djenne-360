@@ -169,14 +169,15 @@ async function runScrubTest(): Promise<void> {
   container.innerHTML = `
     <div style="width:100%;height:100%;background:#000;display:flex;flex-direction:column;">
       <div id="viewer-container" style="flex:1;"></div>
-      <div id="scrub-debug" style="position:fixed;top:10px;right:10px;color:#fff;font-family:monospace;font-size:12px;background:rgba(0,0,0,0.8);padding:15px;z-index:1000;pointer-events:none;min-width:250px;"></div>
-      <div id="controls" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:1000;">
+      <div id="scrub-debug" style="position:fixed;top:10px;right:10px;color:#fff;font-family:monospace;font-size:11px;background:rgba(0,0,0,0.9);padding:15px;z-index:1000;pointer-events:none;min-width:300px;max-width:90vw;"></div>
+      <div id="controls" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:1000;flex-wrap:wrap;justify-content:center;padding:0 20px;">
         <button id="scrub-0" class="btn btn-secondary">0%</button>
         <button id="scrub-25" class="btn btn-secondary">25%</button>
         <button id="scrub-50" class="btn btn-secondary">50%</button>
         <button id="scrub-75" class="btn btn-secondary">75%</button>
         <button id="scrub-100" class="btn btn-secondary">100%</button>
         <button id="scrub-cycle" class="btn btn-primary">Cycle 0-100-0</button>
+        <button id="scrub-fast" class="btn btn-warning">Fast 50x</button>
       </div>
     </div>
   `;
@@ -189,36 +190,39 @@ async function runScrubTest(): Promise<void> {
     const vm = app.getVideoManager();
     const timeline = app.getTimelineController();
     const video = vm?.getVideoElement();
+    const scrubber = (vm as any).videoScrubber;
     
     if (!vm || !video || !timeline) return;
 
     const debugDiv = document.getElementById('scrub-debug')!;
     let seekCount = 0;
-    let lastSeekTime = 0;
     
     // Override seekTo to count seeks
     const originalSeekTo = timeline.seekToProgress.bind(timeline);
     timeline.seekToProgress = (progress: number) => {
       seekCount++;
-      lastSeekTime = performance.now();
       originalSeekTo(progress);
     };
 
-    const updateDebug = () => {
-      const video = vm.getVideoElement();
-      const playbackQuality = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
-      
-      debugDiv.innerHTML = `
-        SCRUB TEST<br>
-        Duration: ${video.duration.toFixed(2)}s<br>
-        Current: ${video.currentTime.toFixed(2)}s<br>
-        Target: ${(vm.getCurrentTime()).toFixed(2)}s<br>
-        FPS: ${(1000 / (performance.now() - (window as any).lastFrameTime || performance.now())).toFixed(1)}<br>
-        Seek Count: ${seekCount}<br>
-        Last Seek: ${(performance.now() - lastSeekTime).toFixed(0)}ms ago<br>
-        ${playbackQuality ? `Total Frames: ${playbackQuality.totalVideoFrames}<br>Dropped: ${playbackQuality.droppedVideoFrames}` : 'PlaybackQuality: N/A'}
-      `;
-    };
+    // Listen to scrubber metrics
+    if (scrubber && scrubber.on) {
+      scrubber.on('metrics', (metrics: any) => {
+        debugDiv.innerHTML = `
+          SCRUB TEST<br>
+          Duration: ${video.duration.toFixed(2)}s<br>
+          Current: ${video.currentTime.toFixed(3)}s<br>
+          Target: ${metrics.targetTime.toFixed(3)}s<br>
+          Delta: ${metrics.delta.toFixed(3)}s<br>
+          FPS: ${metrics.fps.toFixed(1)}<br>
+          Requested Seeks: ${metrics.seekCount}<br>
+          Actual Seeks: ${metrics.actualSeekCount}<br>
+          Last Seek Latency: ${metrics.lastSeekLatencyMs.toFixed(1)}ms<br>
+          Avg Seek Latency: ${metrics.avgSeekLatencyMs.toFixed(1)}ms<br>
+          Dropped Frames: ${metrics.droppedFrames}/${metrics.totalFrames}<br>
+          Using RVF: ${metrics.isUsingRVF ? 'YES' : 'NO'}
+        `;
+      });
+    }
 
     [0, 25, 50, 75, 100].forEach(p => {
       document.getElementById(`scrub-${p}`)!.onclick = () => {
@@ -233,7 +237,14 @@ async function runScrubTest(): Promise<void> {
       }
     };
 
-    setInterval(updateDebug, 100);
+    document.getElementById('scrub-fast')!.onclick = async () => {
+      for (let i = 0; i < 50; i++) {
+        const p = Math.random();
+        timeline.seekToProgress(p);
+        await new Promise(r => setTimeout(r, 10));
+      }
+    };
+
     setInterval(() => {
       (window as any).lastFrameTime = performance.now();
     }, 16);
