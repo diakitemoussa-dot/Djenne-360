@@ -146,6 +146,18 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
     this.debugLog('video.currentTime:', video.currentTime);
     this.debugLog('video.networkState:', video.networkState);
     this.debugLog('video.error:', video.error);
+    this.debugLog('video.paused:', video.paused);
+    this.debugLog('video.muted:', video.muted);
+
+    // FIRST: Apply a test RED material immediately to verify rendering works
+    const testMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000, // Bright red - should be visible immediately
+      side: THREE.BackSide,
+      depthWrite: false,
+      toneMapped: false
+    });
+    this.sphere.material = testMaterial;
+    this.debugLog('TEST MATERIAL (RED) applied to sphere - you should see RED sphere');
 
     // Wait for video to have metadata before creating texture
     const createTexture = () => {
@@ -157,12 +169,17 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
       this.videoTexture.generateMipmaps = false;
       this.videoTexture.flipY = false;
 
-      const material = this.sphere.material as THREE.MeshBasicMaterial;
-      material.map = this.videoTexture;
+      const material = new THREE.MeshBasicMaterial({
+        map: this.videoTexture,
+        side: THREE.BackSide,
+        depthWrite: false,
+        toneMapped: false
+      });
+      this.sphere.material = material;
       material.needsUpdate = true;
 
       this.debugLog('VideoTexture created:', this.videoTexture);
-      this.debugLog('VideoTexture image:', this.videoTexture.image);
+      this.debugLog('VideoTexture.image:', this.videoTexture.image);
       this.debugLog('Sphere material.map:', material.map);
 
       // Debug: add video element to DOM temporarily to verify it plays
@@ -179,6 +196,12 @@ export class Viewer360 extends EventEmitter<Viewer360Events> {
         debugVideo.muted = false;
         document.body.appendChild(debugVideo);
         this.debugLog('Debug video added to DOM');
+      }
+
+      // Force video to play
+      if (video.paused) {
+        this.debugLog('Video was paused, calling play()...');
+        video.play().catch(e => this.debugLog('Video play failed:', e));
       }
     };
 
