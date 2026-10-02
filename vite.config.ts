@@ -45,6 +45,7 @@ export default defineConfig({
   build: {
     target: 'es2022',
     minify: 'esbuild',
+    outDir: 'docs',
     rollupOptions: {
       output: {
         manualChunks: {
